@@ -156,21 +156,25 @@ void loop() {
 
 	while (userSequenceLength < correctSequenceLength) {
 		if (redButton.isPressed()) {
+			lightLed(&redLed);
 			userSequence[userSequenceLength] = &redLed;
 			userSequenceLength++;
 		}
 
 		if (greenButton.isPressed()) {
+			lightLed(&greenLed);
 			userSequence[userSequenceLength] = &greenLed;
 			userSequenceLength++;
 		}
 
 		if (blueButton.isPressed()) {
+			lightLed(&blueLed);
 			userSequence[userSequenceLength] = &blueLed;
 			userSequenceLength++;
 		}
 
 		if (yellowButton.isPressed()) {
+			lightLed(&yellowLed);
 			userSequence[userSequenceLength] = &yellowLed;
 			userSequenceLength++;
 		}
@@ -182,13 +186,13 @@ void loop() {
 	}
 
 	if (userSequence == correctSequence) {
-		
+
 	} else {
-		
+
 	}
 }
 
-void lightLed(Led &led) {
+void lightLed(Led* led) {
   ledcWriteTone(PIN_BUZZER, led.buzzerFrequency);
   ledcWrite(PIN_BUZZER, 20);
   led.turnOn();
