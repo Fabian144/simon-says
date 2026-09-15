@@ -134,7 +134,7 @@ void setup() {
 
   audio.setVolume(16); // 0...21
   audio.connecttoFS(SD_MMC, "/audio/success/wow.mp3");
-  }
+}
 
 void loop() {
   audio.loop();
