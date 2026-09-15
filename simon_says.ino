@@ -186,7 +186,7 @@ void loop() {
 	}
 
 	if (userSequence == correctSequence) {
-
+		userSequenceLength = 0;
 	} else {
 
 	}
