@@ -1,7 +1,7 @@
 #include "Arduino.h"
-#include "Audio.h"
-#include "FS.h"
-#include "SD_MMC.h"
+#include <Audio.h>
+#include <FS.h>
+#include <SD_MMC.h>
 
 const int SD_MMC_CMD = 15;
 const int SD_MMC_CLK = 14;
@@ -43,6 +43,14 @@ Led blueLed(12, 350);
 Led yellowLed(13, 400);
 
 Led* leds[4] = {&redLed, &greenLed, &blueLed, &yellowLed};
+int ledAmount = sizeof(leds) / sizeof(leds[0]);
+
+int maxLength = 50;
+Led* correctSequence[maxLength];
+int correctSequenceLength = 0;
+
+Led* userSequence[maxLength];
+int userSequenceLength = 0;
 
 class Button {
   private:
@@ -138,26 +146,46 @@ void loop() {
     log_i("free heap=%i", ESP.getFreeHeap());
   }
 
-  if (redButton.isPressed()) {
+	int randomIndex = random(ledAmount);
+	correctSequence[correctSequenceLength] = leds[randomIndex];
+	correctSequenceLength++;
 
-  }
+	for (int i = 0; i < correctSequenceLength; i++) {
+		ligthLed(correctSequence[i]);
+	}
 
-  if (greenButton.isPressed()) {
+	while (userSequenceLength < correctSequenceLength) {
+		if (redButton.isPressed()) {
+			userSequence[userSequenceLength] = &redLed;
+			userSequenceLength++;
+		}
 
-  }
+		if (greenButton.isPressed()) {
+			userSequence[userSequenceLength] = &greenLed;
+			userSequenceLength++;
+		}
 
-  if (blueButton.isPressed()) {
+		if (blueButton.isPressed()) {
+			userSequence[userSequenceLength] = &blueLed;
+			userSequenceLength++;
+		}
 
-  }
+		if (yellowButton.isPressed()) {
+			userSequence[userSequenceLength] = &yellowLed;
+			userSequenceLength++;
+		}
 
-  if (yellowButton.isPressed()) {
-  
-  }
+		redButton.syncState();
+		blueButton.syncState();
+		greenButton.syncState();
+		yellowButton.syncState();
+	}
 
-  redButton.syncState();
-  blueButton.syncState();
-  greenButton.syncState();
-  yellowButton.syncState();
+	if (userSequence == correctSequence) {
+		
+	} else {
+		
+	}
 }
 
 void lightLed(Led &led) {
