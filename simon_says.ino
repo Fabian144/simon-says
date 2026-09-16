@@ -236,32 +236,28 @@ void loop() {
 	switch (state) {
 
 		case SHOWING_SEQUENCE: {
-			if (correctSequenceLength == score) {
-				updateCorrectSequence();
-			}
-
+			bool sequenceUpdated = correctSequenceLength != score
 			static bool ledActive = false;
 			static bool inGap = false;
 			static unsigned long gapStart = 0;
+
+			if (!sequenceUpdated) {
+				updateCorrectSequence();
+			}
 
 			if (inGap) {
 				if (millis() - gapStart >= 500) {
 					inGap = false;
 				}
-			}
-			
-			if (!ledActive) {
+			} else if (!ledActive) {
 				correctSequence[loops]->activateLed(500);
 				ledActive = true;
-			}
-			
-			if (!correctSequence[loops]->isLit()) {
+			} else if (!correctSequence[loops]->isLit()) {
 				loops++;
 				ledActive = false;
 
 				if (loops == correctSequenceLength) {
 					loops = 0;
-					userSequenceLength = 0;
 					state = WAITING_FOR_PRESS;
 				} else {
 					inGap = true;
@@ -302,8 +298,9 @@ void loop() {
     }
 
 		case ADVANCE: {
-			score++;
 			playResultAudio(true);
+			score++;
+			userSequenceLength = 0;
 			if (!audio.isRunning()) {
         state = SHOWING_SEQUENCE;
       }
