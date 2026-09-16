@@ -304,9 +304,6 @@ void loop() {
     }
 
 		case PLAYING_RESULT_AUDIO: {
-      if (!audio.isRunning()) {
-        state = SHOWING_SEQUENCE;
-      }
     	break;
     }
   }
