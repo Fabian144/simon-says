@@ -154,7 +154,8 @@ enum GameState {
   SHOWING_SEQUENCE,
   WAITING_FOR_PRESS,
   DECIDE_ROUND,
-  PLAYING_RESULT_AUDIO
+	ADVANCE,
+  GAME_OVER,
 };
 
 GameState state = SHOWING_SEQUENCE;
@@ -291,19 +292,25 @@ void loop() {
       }
 
 			if (!sequencesMatch()) {
-				playResultAudio(false);
-        state = PLAYING_RESULT_AUDIO;
+        state = GAME_OVER;
 			} else if (userSequenceLength == correctSequenceLength) {
-				playResultAudio(true);
-				score++;
-				state = PLAYING_RESULT_AUDIO;
+				state = ADVANCE;
 			} else {
 				state = WAITING_FOR_PRESS;
 			}
       break;
     }
 
-		case PLAYING_RESULT_AUDIO: {
+		case ADVANCE: {
+			score++;
+			playResultAudio(true);
+			if (!audio.isRunning()) {
+        state = SHOWING_SEQUENCE;
+      }
+		}
+
+		case GAME_OVER: {
+			playResultAudio(false);
     	break;
     }
   }
