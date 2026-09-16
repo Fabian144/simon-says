@@ -12,25 +12,25 @@ const int I2S_LRC = 25;
 const int PIN_BUZZER = 18;
 const int CHN = 0;
 
-String successAudio[3] = {
+const char* successAudio[3] = {
 	"/audio/success/success.mp3",
 	"/audio/success/success 2.mp3",
 	"/audio/success/wow.mp3"
-}
+};
 int successAmount = sizeof(successAudio) / sizeof(successAudio[0]);
 
-String failAudio[2] = {
+const char* failAudio[2] = {
 	"/audio/fail/fail.mp3",
 	"/audio/fail/fail trumpet.mp3"
-}
+};
 int failAmount = sizeof(failAudio) / sizeof(failAudio[0]);
 
-String failVoices[4] = {
+const char* failVoices[4] = {
 	"/audio/fail/better luck next time.mp3",
 	"/audio/fail/not even trying.mp3",
 	"/audio/fail/worse than grandma.mp3",
 	"/audio/fail/you lost.mp3"
-}
+};
 int failVoicesAmount = sizeof(failVoices) / sizeof(failVoices[0]);
 
 class Led {
@@ -66,7 +66,7 @@ Led yellowLed(13, 400);
 Led* leds[4] = {&redLed, &greenLed, &blueLed, &yellowLed};
 int ledAmount = sizeof(leds) / sizeof(leds[0]);
 
-int maxLength = 50;
+const int maxLength = 50;
 Led* correctSequence[maxLength];
 int correctSequenceLength = 0;
 
@@ -170,7 +170,7 @@ void loop() {
 	updateCorrectSequence();
 
 	for (int i = 0; i < correctSequenceLength; i++) {
-		ligthLed(correctSequence[i]);
+		lightLed(correctSequence[i]);
 	}
 
 	while (userSequenceLength < correctSequenceLength) {
@@ -214,7 +214,7 @@ void loop() {
 			audio.loop();
 		}
 		audio.connecttoFS(SD_MMC, failVoices[randomIndex[1]]);
-		while (True) {}
+		while (true) {}
 	}
 }
 
@@ -230,12 +230,12 @@ void updateUserSequence(Led* led) {
 }
 
 void lightLed(Led* led) {
-  ledcWriteTone(PIN_BUZZER, led.buzzerFrequency);
+  ledcWriteTone(PIN_BUZZER, led->buzzerFrequency);
   ledcWrite(PIN_BUZZER, 20);
-  led.turnOn();
+  led->turnOn();
   delay(500);
   ledcWriteTone(PIN_BUZZER, 0);
-  led.turnOff();
+  led->turnOff();
 }
 
 void audio_info(const char *info) {
