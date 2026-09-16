@@ -36,6 +36,9 @@ int failVoicesAmount = sizeof(failVoices) / sizeof(failVoices[0]);
 class Led {
   private:
     int pin;
+		bool lit;
+		unsigned long onSince;
+		unsigned long onDuration;
 
   public:
     int buzzerFrequency;
@@ -56,6 +59,29 @@ class Led {
     void turnOff() {
       digitalWrite(pin, LOW);
     }
+
+		bool update() {
+			if (lit && (millis() - onSince) >= onDuration) {
+				turnOff();
+				ledcWriteTone(PIN_BUZZER, 0);
+				lit = false;
+				return true;
+			}
+			return false;
+		}
+
+		void activateLed(unsigned long duration) {
+			ledcWriteTone(PIN_BUZZER, buzzerFrequency);
+			ledcWrite(PIN_BUZZER, 20);
+			turnOn();
+			lit = true;
+			onSince = millis();
+			onDuration = duration;
+		}
+
+		bool isLit() {
+			return lit;
+		}
 };
 
 Led redLed(4, 250);
@@ -77,11 +103,17 @@ class Button {
   private:
     int pin;
     int lastState;
+		int lastStableState;
+		unsigned long lastDebounceTime;
+		unsigned long debounceDelay;
 
   public:
     Button(int buttonPin) {
       pin = buttonPin;
       lastState = 1;
+			lastStableState = 1;
+			lastDebounceTime = 0;
+			debounceDelay = 25;
     }
 
     void begin() {
@@ -92,12 +124,22 @@ class Button {
       return digitalRead(pin);
     }
 
-    void syncState() {
-      lastState = currentState();
+    void update() {
+      int reading = currentState();
+			if (reading != lastState) {
+				lastDebounceTime = millis();
+			}
+			if ((millis() - lastDebounceTime) > debounceDelay) {
+				lastStableState = reading;
+			}
+			lastState = reading;
     }
 
     bool isPressed() {
-      return (currentState() == 0) && (lastState == 1);
+			static int prevStable = 1;
+			bool pressed = (lastStableState == 0 && lastState == 1);
+			prevStable = lastStableState;
+			return pressed;
     }
 };
 
@@ -107,6 +149,19 @@ Button blueButton(27);
 Button yellowButton(32);
 
 Audio audio;
+
+enum GameState {
+  SHOWING_SEQUENCE,
+  WAITING_FOR_PRESS,
+  DECIDE_ROUND,
+  PLAYING_RESULT_AUDIO
+};
+
+GameState state = SHOWING_SEQUENCE;
+
+Led* pressedLed = nullptr;
+int loops = 0;
+int score = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -167,59 +222,94 @@ void loop() {
     log_i("free heap=%i", ESP.getFreeHeap());
   }
 
-	updateCorrectSequence();
+	redButton.update();
+	greenButton.update();
+	blueButton.update();
+	yellowButton.update();
 
-	for (int i = 0; i < correctSequenceLength; i++) {
-		lightLed(correctSequence[i]);
-	}
+  redLed.update();
+  greenLed.update();
+  blueLed.update();
+  yellowLed.update();
 
-	while (sequencesMatch() && userSequenceLength < correctSequenceLength) {
-		Led* pressed = nullptr;
-		if (redButton.isPressed())    pressed = &redLed;
-		else if (greenButton.isPressed())  pressed = &greenLed;
-		else if (blueButton.isPressed())   pressed = &blueLed;
-		else if (yellowButton.isPressed()) pressed = &yellowLed;
+	switch (state) {
 
-  	if (pressed) {
-			lightLed(pressed);
-			updateUserSequence(pressed);
-  	}
+		case SHOWING_SEQUENCE: {
+			if (correctSequenceLength == score) {
+				updateCorrectSequence();
+			}
 
-		redButton.syncState();
-		blueButton.syncState();
-		greenButton.syncState();
-		yellowButton.syncState();
-	}
+			static bool ledActive = false;
+			static bool inGap = false;
+			static unsigned long gapStart = 0;
 
-	if (sequencesMatch()) {
-		int randomIndex = random(successAmount);
-		audio.connecttoFS(SD_MMC, successAudio[randomIndex]);
-		while (audio.isRunning()) {
-			audio.loop();
+			if (inGap) {
+				if (millis() - gapStart >= 500) {
+					inGap = false;
+				}
+			}
+			
+			if (!ledActive) {
+				correctSequence[loops]->activateLed(500);
+				ledActive = true;
+			}
+			
+			if (!correctSequence[loops]->isLit()) {
+				loops++;
+				ledActive = false;
+
+				if (loops == correctSequenceLength) {
+					loops = 0;
+					userSequenceLength = 0;
+					state = WAITING_FOR_PRESS;
+				} else {
+					inGap = true;
+					gapStart = millis();
+				}
+			}
+			break;
 		}
-		userSequenceLength = 0;
-	} else {
-		int randomIndex[2] = {random(failAmount), random(failVoicesAmount)};
-		audio.connecttoFS(SD_MMC, failAudio[randomIndex[0]]);
-		while (audio.isRunning()) {
-			audio.loop();
-		}
-		delay(500);
-		audio.connecttoFS(SD_MMC, failVoices[randomIndex[1]]);
-		while (audio.isRunning()) {
-			audio.loop();
-		}
-		while (true) {}
-	}
-}
 
-void lightLed(Led* led) {
-  ledcWriteTone(PIN_BUZZER, led->buzzerFrequency);
-  ledcWrite(PIN_BUZZER, 20);
-  led->turnOn();
-  delay(500);
-  ledcWriteTone(PIN_BUZZER, 0);
-  led->turnOff();
+    case WAITING_FOR_PRESS: {
+			pressedLed = nullptr;
+      if (redButton.isPressed())         pressedLed = &redLed;
+      else if (greenButton.isPressed())  pressedLed = &greenLed;
+      else if (blueButton.isPressed())   pressedLed = &blueLed;
+      else if (yellowButton.isPressed()) pressedLed = &yellowLed;
+
+      if (pressedLed) {
+        updateUserSequence(pressedLed);
+        pressedLed->activateLed(500);
+        state = DECIDE_ROUND;
+      }
+      break;
+    }
+
+    case DECIDE_ROUND: {
+      if (pressedLed->isLit()) {
+				break;
+      }
+
+			if (!sequencesMatch()) {
+				playResultAudio(false);
+        state = PLAYING_RESULT_AUDIO;
+			} else if (userSequenceLength == correctSequenceLength) {
+				playResultAudio(true);
+				score++;
+				state = PLAYING_RESULT_AUDIO;
+			} else {
+				state = WAITING_FOR_PRESS;
+			}
+      break;
+    }
+
+		case PLAYING_RESULT_AUDIO: {
+      if (!audio.isRunning()) {
+        state = SHOWING_SEQUENCE;
+      }
+    	break;
+    }
+  }
 }
 
 void updateCorrectSequence() {
@@ -241,6 +331,27 @@ bool sequencesMatch() {
     if (userSequence[i] != correctSequence[i]) return false;
   }
   return true;
+}
+
+void playResultAudio(bool success) {
+  if (success) {
+    int randomIndex = random(successAmount);
+    audio.connecttoFS(SD_MMC, successAudio[randomIndex]);
+		while (audio.isRunning()) {
+			audio.loop();
+		}
+  } else {
+		int randomIndex[2] = {random(failAmount), random(failVoicesAmount)};
+		audio.connecttoFS(SD_MMC, failAudio[randomIndex[0]]);
+		while (audio.isRunning()) {
+			audio.loop();
+		}
+		delay(500);
+		audio.connecttoFS(SD_MMC, failVoices[randomIndex[1]]);
+		while (audio.isRunning()) {
+			audio.loop();
+		}
+  }
 }
 
 void audio_info(const char *info) {
