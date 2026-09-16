@@ -173,7 +173,7 @@ void loop() {
 		lightLed(correctSequence[i]);
 	}
 
-	while (userSequenceLength < correctSequenceLength) {
+	while (sequencesMatch() && userSequenceLength < correctSequenceLength) {
 		if (redButton.isPressed()) {
 			lightLed(&redLed);
 			updateUserSequence(&redLed);
@@ -214,6 +214,9 @@ void loop() {
 			audio.loop();
 		}
 		audio.connecttoFS(SD_MMC, failVoices[randomIndex[1]]);
+		while (audio.isRunning()) {
+			audio.loop();
+		}
 		while (true) {}
 	}
 }
@@ -239,7 +242,10 @@ void updateUserSequence(Led* led) {
 }
 
 bool sequencesMatch() {
-  for (int i = 0; i < correctSequenceLength; i++) {
+  if (userSequenceLength == 0) {
+		return true
+	};
+  for (int i = 0; i < userSequenceLength; i++) {
     if (userSequence[i] != correctSequence[i]) return false;
   }
   return true;
