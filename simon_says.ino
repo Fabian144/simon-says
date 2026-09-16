@@ -12,6 +12,27 @@ const int I2S_LRC = 25;
 const int PIN_BUZZER = 18;
 const int CHN = 0;
 
+String successAudio[3] = {
+	"/audio/success/success.mp3",
+	"/audio/success/success 2.mp3",
+	"/audio/success/wow.mp3"
+}
+int successAmount = sizeof(successAudio) / sizeof(successAudio[0]);
+
+String failAudio[2] = {
+	"/audio/fail/fail.mp3",
+	"/audio/fail/fail trumpet.mp3"
+}
+int failAmount = sizeof(failAudio) / sizeof(failAudio[0]);
+
+String failVoices[4] = {
+	"/audio/fail/better luck next time.mp3",
+	"/audio/fail/not even trying.mp3",
+	"/audio/fail/worse than grandma.mp3",
+	"/audio/fail/you lost.mp3"
+}
+int failVoicesAmount = sizeof(failVoices) / sizeof(failVoices[0]);
+
 class Led {
   private:
     int pin;
@@ -133,7 +154,7 @@ void setup() {
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
 
   audio.setVolume(16); // 0...21
-  audio.connecttoFS(SD_MMC, "/audio/success/wow.mp3");
+  audio.connecttoFS(SD_MMC, successAudio[2]);
 }
 
 void loop() {
@@ -146,9 +167,7 @@ void loop() {
     log_i("free heap=%i", ESP.getFreeHeap());
   }
 
-	int randomIndex = random(ledAmount);
-	correctSequence[correctSequenceLength] = leds[randomIndex];
-	correctSequenceLength++;
+	updateCorrectSequence();
 
 	for (int i = 0; i < correctSequenceLength; i++) {
 		ligthLed(correctSequence[i]);
@@ -157,26 +176,22 @@ void loop() {
 	while (userSequenceLength < correctSequenceLength) {
 		if (redButton.isPressed()) {
 			lightLed(&redLed);
-			userSequence[userSequenceLength] = &redLed;
-			userSequenceLength++;
+			updateUserSequence(&redLed);
 		}
 
 		if (greenButton.isPressed()) {
 			lightLed(&greenLed);
-			userSequence[userSequenceLength] = &greenLed;
-			userSequenceLength++;
+			updateUserSequence(&greenLed);
 		}
 
 		if (blueButton.isPressed()) {
 			lightLed(&blueLed);
-			userSequence[userSequenceLength] = &blueLed;
-			userSequenceLength++;
+			updateUserSequence(&blueLed);
 		}
 
 		if (yellowButton.isPressed()) {
 			lightLed(&yellowLed);
-			userSequence[userSequenceLength] = &yellowLed;
-			userSequenceLength++;
+			updateUserSequence(&yellowLed);
 		}
 
 		redButton.syncState();
@@ -186,10 +201,32 @@ void loop() {
 	}
 
 	if (userSequence == correctSequence) {
+		int randomIndex = random(successAmount);
+		audio.connecttoFS(SD_MMC, successAudio[randomIndex]);
+		while (audio.isRunning()) {
+			audio.loop();
+		}
 		userSequenceLength = 0;
 	} else {
-
+		int randomIndex[2] = {random(failAmount), random(failVoicesAmount)};
+		audio.connecttoFS(SD_MMC, failAudio[randomIndex[0]]);
+		while (audio.isRunning()) {
+			audio.loop();
+		}
+		audio.connecttoFS(SD_MMC, failVoices[randomIndex[1]]);
+		while (True) {}
 	}
+}
+
+void updateCorrectSequence() {
+	int randomIndex = random(ledAmount);
+	correctSequence[correctSequenceLength] = leds[randomIndex];
+	correctSequenceLength++;
+}
+
+void updateUserSequence(Led* led) {
+	userSequence[userSequenceLength] = led;
+	userSequenceLength++;
 }
 
 void lightLed(Led* led) {
