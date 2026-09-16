@@ -213,7 +213,7 @@ void loop() {
 		while (audio.isRunning()) {
 			audio.loop();
 		}
-		delay(500);
+		millis(500);
 		audio.connecttoFS(SD_MMC, failVoices[randomIndex[1]]);
 		while (audio.isRunning()) {
 			audio.loop();
@@ -226,7 +226,7 @@ void lightLed(Led* led) {
   ledcWriteTone(PIN_BUZZER, led->buzzerFrequency);
   ledcWrite(PIN_BUZZER, 20);
   led->turnOn();
-  delay(500);
+  millis(500);
   ledcWriteTone(PIN_BUZZER, 0);
   led->turnOff();
 }
