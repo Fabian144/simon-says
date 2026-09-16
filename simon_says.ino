@@ -137,7 +137,7 @@ class Button {
 
     bool isPressed() {
 			static int prevStable = 1;
-			bool pressed = (lastStableState == 0 && lastState == 1);
+			bool pressed = (lastStableState == 0 && prevStable == 1);
 			prevStable = lastStableState;
 			return pressed;
     }
@@ -304,6 +304,7 @@ void loop() {
 			if (!audio.isRunning()) {
         state = SHOWING_SEQUENCE;
       }
+			break;
 		}
 
 		case GAME_OVER: {
