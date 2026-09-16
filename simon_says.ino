@@ -174,25 +174,16 @@ void loop() {
 	}
 
 	while (sequencesMatch() && userSequenceLength < correctSequenceLength) {
-		if (redButton.isPressed()) {
-			lightLed(&redLed);
-			updateUserSequence(&redLed);
-		}
+		Led* pressed = nullptr;
+		if (redButton.isPressed())    pressed = &redLed;
+		else if (greenButton.isPressed())  pressed = &greenLed;
+		else if (blueButton.isPressed())   pressed = &blueLed;
+		else if (yellowButton.isPressed()) pressed = &yellowLed;
 
-		if (greenButton.isPressed()) {
-			lightLed(&greenLed);
-			updateUserSequence(&greenLed);
-		}
-
-		if (blueButton.isPressed()) {
-			lightLed(&blueLed);
-			updateUserSequence(&blueLed);
-		}
-
-		if (yellowButton.isPressed()) {
-			lightLed(&yellowLed);
-			updateUserSequence(&yellowLed);
-		}
+  	if (pressed) {
+			lightLed(pressed);
+			updateUserSequence(pressed);
+  	}
 
 		redButton.syncState();
 		blueButton.syncState();
