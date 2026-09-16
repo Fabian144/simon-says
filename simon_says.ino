@@ -200,7 +200,7 @@ void loop() {
 		yellowButton.syncState();
 	}
 
-	if (userSequence == correctSequence) {
+	if (sequencesMatch()) {
 		int randomIndex = random(successAmount);
 		audio.connecttoFS(SD_MMC, successAudio[randomIndex]);
 		while (audio.isRunning()) {
@@ -218,6 +218,15 @@ void loop() {
 	}
 }
 
+void lightLed(Led* led) {
+  ledcWriteTone(PIN_BUZZER, led->buzzerFrequency);
+  ledcWrite(PIN_BUZZER, 20);
+  led->turnOn();
+  delay(500);
+  ledcWriteTone(PIN_BUZZER, 0);
+  led->turnOff();
+}
+
 void updateCorrectSequence() {
 	int randomIndex = random(ledAmount);
 	correctSequence[correctSequenceLength] = leds[randomIndex];
@@ -229,13 +238,11 @@ void updateUserSequence(Led* led) {
 	userSequenceLength++;
 }
 
-void lightLed(Led* led) {
-  ledcWriteTone(PIN_BUZZER, led->buzzerFrequency);
-  ledcWrite(PIN_BUZZER, 20);
-  led->turnOn();
-  delay(500);
-  ledcWriteTone(PIN_BUZZER, 0);
-  led->turnOff();
+bool sequencesMatch() {
+  for (int i = 0; i < correctSequenceLength; i++) {
+    if (userSequence[i] != correctSequence[i]) return false;
+  }
+  return true;
 }
 
 void audio_info(const char *info) {
