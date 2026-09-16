@@ -243,7 +243,7 @@ void updateUserSequence(Led* led) {
 
 bool sequencesMatch() {
   if (userSequenceLength == 0) {
-		return true
+		return true;
 	};
   for (int i = 0; i < userSequenceLength; i++) {
     if (userSequence[i] != correctSequence[i]) return false;
