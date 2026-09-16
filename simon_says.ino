@@ -213,6 +213,7 @@ void loop() {
 		while (audio.isRunning()) {
 			audio.loop();
 		}
+		delay(500);
 		audio.connecttoFS(SD_MMC, failVoices[randomIndex[1]]);
 		while (audio.isRunning()) {
 			audio.loop();
