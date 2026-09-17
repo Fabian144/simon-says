@@ -240,12 +240,12 @@ void loop() {
 	switch (state) {
 
 		case SHOWING_SEQUENCE: {
-			bool sequenceUpdated = correctSequenceLength != score;
+			bool oldSequence = correctSequenceLength == score;
 			static bool ledActive = false;
 			static bool inGap = false;
 			static unsigned long gapStart = 0;
 
-			if (!sequenceUpdated) {
+			if (oldSequence) {
 				updateCorrectSequence();
 			}
 
