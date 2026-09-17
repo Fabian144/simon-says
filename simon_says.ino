@@ -101,8 +101,6 @@ int correctSequenceLength = 0;
 Led* userSequence[maxLength];
 int userSequenceLength = 0;
 
-Led* pressedLed = nullptr;
-
 class Button {
  private:
   uint8_t pin;
@@ -213,6 +211,8 @@ void setup() {
 }
 
 void loop() {
+	static Led* pressedLed = nullptr;
+
   redButton.update();
   greenButton.update();
   blueButton.update();
