@@ -2,6 +2,8 @@
 #include <Audio.h>
 #include <FS.h>
 #include <SD_MMC.h>
+#include <LiquidCrystal_I2C.h>
+#include <Wire.h>
 
 const int SD_MMC_CMD = 15;
 const int SD_MMC_CLK = 14;
@@ -11,6 +13,28 @@ const int I2S_DOUT = 33;
 const int I2S_LRC = 25;
 const int PIN_BUZZER = 18;
 const int CHN = 0;
+const int SDA = 21;
+const int SCL = 22;
+
+LiquidCrystal_I2C lcd(0x27,16,2);
+
+enum GameState {
+  SHOWING_SEQUENCE,
+  WAITING_FOR_PRESS,
+  DECIDE_ROUND,
+	ADVANCE,
+  GAME_OVER,
+};
+
+GameState state = SHOWING_SEQUENCE;
+
+unsigned long FLASH_DURATION = 500;
+unsigned long GAP_DURATION = 200;
+
+int score = 0;
+int ledsFlashed = 0;
+
+Led* pressedLed = nullptr;
 
 const char* successAudio[3] = {
 	"/audio/success/success.mp3",
@@ -150,20 +174,6 @@ Button yellowButton(32);
 
 Audio audio;
 
-enum GameState {
-  SHOWING_SEQUENCE,
-  WAITING_FOR_PRESS,
-  DECIDE_ROUND,
-	ADVANCE,
-  GAME_OVER,
-};
-
-GameState state = SHOWING_SEQUENCE;
-
-Led* pressedLed = nullptr;
-int loops = 0;
-int score = 0;
-
 void setup() {
   Serial.begin(115200);
 
@@ -182,6 +192,16 @@ void setup() {
   greenButton.begin();
   blueButton.begin();
   yellowButton.begin();
+
+  Wire.begin(SDA, SCL);
+  if (!i2CAddrTest(0x27)) {
+  lcd = LiquidCrystal_I2C(0x3F, 16, 2);
+  }
+
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0,0);
+  lcd.print("Simon says");
 
   if (!SD_MMC.begin("/sdcard", true, true, SDMMC_FREQ_DEFAULT, 5)) {
     Serial.println("Card Mount Failed");
@@ -210,7 +230,6 @@ void setup() {
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
 
   audio.setVolume(16); // 0...21
-  audio.connecttoFS(SD_MMC, successAudio[2]);
 }
 
 void loop() {
@@ -222,6 +241,10 @@ void loop() {
     if (r.length() > 5) audio.connecttoFS(SD_MMC, r.c_str());
     log_i("free heap=%i", ESP.getFreeHeap());
   }
+
+  lcd.setCursor(0,1);
+  lcd.print("Score:");
+  lcd.print(score);
 
 	redButton.update();
 	greenButton.update();
@@ -246,18 +269,18 @@ void loop() {
 			}
 
 			if (inGap) {
-				if (millis() - gapStart >= 500) {
+				if (millis() - gapStart >= GAP_DURATION) {
 					inGap = false;
 				}
 			} else if (!ledActive) {
-				correctSequence[loops]->activateLed(500);
+				correctSequence[ledsFlashed]->activateLed(FLASH_DURATION);
 				ledActive = true;
-			} else if (!correctSequence[loops]->isLit()) {
-				loops++;
+			} else if (!correctSequence[ledsFlashed]->isLit()) {
+				ledsFlashed++;
 				ledActive = false;
 
-				if (loops == correctSequenceLength) {
-					loops = 0;
+				if (ledsFlashed == correctSequenceLength) {
+					ledsFlashed = 0;
 					state = WAITING_FOR_PRESS;
 				} else {
 					inGap = true;
@@ -309,7 +332,7 @@ void loop() {
 
 		case GAME_OVER: {
 			playResultAudio(false);
-    	break;
+    	while (true) {}
     }
   }
 }
@@ -354,6 +377,15 @@ void playResultAudio(bool success) {
 			audio.loop();
 		}
   }
+}
+
+bool i2CAddrTest(uint8_t addr) {
+Wire.begin();
+Wire.beginTransmission(addr);
+if (Wire.endTransmission() == 0) {
+return true;
+}
+return false;
 }
 
 void audio_info(const char *info) {
