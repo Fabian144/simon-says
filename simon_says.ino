@@ -1,99 +1,89 @@
-#include "Arduino.h"
 #include <Audio.h>
 #include <FS.h>
-#include <SD_MMC.h>
 #include <LiquidCrystal_I2C.h>
+#include <SD_MMC.h>
 #include <Wire.h>
 
-const int SD_MMC_CMD = 15;
-const int SD_MMC_CLK = 14;
-const int SD_MMC_D0 = 2;
-const int I2S_BCLK = 26;
-const int I2S_DOUT = 33;
-const int I2S_LRC = 25;
-const int PIN_BUZZER = 18;
-const int CHN = 0;
+#include "Arduino.h"
 
-LiquidCrystal_I2C lcd(0x27,16,2);
+const uint8_t SD_MMC_CMD = 15;
+const uint8_t SD_MMC_CLK = 14;
+const uint8_t SD_MMC_D0 = 2;
+const uint8_t I2S_BCLK = 26;
+const uint8_t I2S_DOUT = 33;
+const uint8_t I2S_LRC = 25;
+const uint8_t PIN_BUZZER = 18;
+const uint8_t CHN = 0;
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 enum GameState {
   SHOWING_SEQUENCE,
   WAITING_FOR_PRESS,
   DECIDE_ROUND,
-	ADVANCE,
+  ADVANCE,
   GAME_OVER,
 };
 
 GameState state = SHOWING_SEQUENCE;
 
-unsigned long FLASH_DURATION = 500;
-unsigned long GAP_DURATION = 200;
+const unsigned long FLASH_DURATION = 500;
+const unsigned long GAP_DURATION = 200;
 
 int score = 0;
 int ledsFlashed = 0;
 
-const char* successAudio[3] = {
-	"/audio/success/success.mp3",
-	"/audio/success/success 2.mp3",
-	"/audio/success/wow.mp3"
-};
+const char* successAudio[3] = {"/audio/success/success.mp3",
+                               "/audio/success/success 2.mp3",
+                               "/audio/success/wow.mp3"};
 int successAmount = sizeof(successAudio) / sizeof(successAudio[0]);
 
-const char* failAudio[2] = {
-	"/audio/fail/fail.mp3",
-	"/audio/fail/fail trumpet.mp3"
-};
+const char* failAudio[2] = {"/audio/fail/fail.mp3",
+                            "/audio/fail/fail trumpet.mp3"};
 int failAmount = sizeof(failAudio) / sizeof(failAudio[0]);
 
 const char* failVoices[4] = {
-	"/audio/fail/better luck next time.mp3",
-	"/audio/fail/not even trying.mp3",
-	"/audio/fail/worse than grandma.mp3",
-	"/audio/fail/you lost.mp3"
-};
+    "/audio/fail/better luck next time.mp3", "/audio/fail/not even trying.mp3",
+    "/audio/fail/worse than grandma.mp3", "/audio/fail/you lost.mp3"};
 int failVoicesAmount = sizeof(failVoices) / sizeof(failVoices[0]);
 
 class Led {
-  private:
-    int pin;
-		bool lit;
-		unsigned long onSince;
-		unsigned long onDuration;
+ private:
+  uint8_t pin;
+  bool lit;
+  unsigned long onSince;
+  unsigned long onDuration;
 
-  public:
-    int buzzerFrequency;
+ public:
+  uint16_t buzzerFrequency;
 
-    Led(int ledPin, int frequency) {
-      pin = ledPin;
-      buzzerFrequency = frequency;
+  Led(uint8_t ledPin, uint16_t frequency) {
+    pin = ledPin;
+    buzzerFrequency = frequency;
+  }
+
+  void begin() { pinMode(pin, OUTPUT); }
+
+  bool update() {
+    if (lit && (millis() - onSince) >= onDuration) {
+      digitalWrite(pin, LOW);
+      ledcWriteTone(PIN_BUZZER, 0);
+      lit = false;
+      return true;
     }
+    return false;
+  }
 
-    void begin() {
-      pinMode(pin, OUTPUT);
-    }
+  void activateLed(unsigned long duration) {
+    ledcWriteTone(PIN_BUZZER, buzzerFrequency);
+    ledcWrite(PIN_BUZZER, 20);
+    digitalWrite(pin, HIGH);
+    lit = true;
+    onSince = millis();
+    onDuration = duration;
+  }
 
-		bool update() {
-			if (lit && (millis() - onSince) >= onDuration) {
-				digitalWrite(pin, LOW);
-				ledcWriteTone(PIN_BUZZER, 0);
-				lit = false;
-				return true;
-			}
-			return false;
-		}
-
-		void activateLed(unsigned long duration) {
-			ledcWriteTone(PIN_BUZZER, buzzerFrequency);
-			ledcWrite(PIN_BUZZER, 20);
-			digitalWrite(pin, HIGH);
-			lit = true;
-			onSince = millis();
-			onDuration = duration;
-		}
-
-		bool isLit() {
-			return lit;
-		}
+  bool isLit() { return lit; }
 };
 
 Led redLed(4, 250);
@@ -114,47 +104,43 @@ int userSequenceLength = 0;
 Led* pressedLed = nullptr;
 
 class Button {
-  private:
-    int pin;
-    int lastState;
-		int lastStableState;
-		unsigned long lastDebounceTime;
-		unsigned long debounceDelay;
+ private:
+  uint8_t pin;
+  uint8_t lastState;
+  uint8_t lastStableState;
+  unsigned long lastDebounceTime;
+  unsigned long debounceDelay;
 
-  public:
-    Button(int buttonPin) {
-      pin = buttonPin;
-      lastState = 1;
-			lastStableState = 1;
-			lastDebounceTime = 0;
-			debounceDelay = 25;
-    }
+ public:
+  Button(uint8_t buttonPin) {
+    pin = buttonPin;
+    lastState = 1;
+    lastStableState = 1;
+    lastDebounceTime = 0;
+    debounceDelay = 25;
+  }
 
-    void begin() {
-      pinMode(pin, INPUT_PULLUP);
-    }
+  void begin() { pinMode(pin, INPUT_PULLUP); }
 
-    int currentState() {
-      return digitalRead(pin);
-    }
+  uint8_t currentState() { return digitalRead(pin); }
 
-    void update() {
-      int reading = currentState();
-			if (reading != lastState) {
-				lastDebounceTime = millis();
-			}
-			if ((millis() - lastDebounceTime) > debounceDelay) {
-				lastStableState = reading;
-			}
-			lastState = reading;
+  void update() {
+    int reading = currentState();
+    if (reading != lastState) {
+      lastDebounceTime = millis();
     }
+    if ((millis() - lastDebounceTime) > debounceDelay) {
+      lastStableState = reading;
+    }
+    lastState = reading;
+  }
 
-    bool isPressed() {
-			static int prevStable = 1;
-			bool pressed = (lastStableState == 0 && prevStable == 1);
-			prevStable = lastStableState;
-			return pressed;
-    }
+  bool isPressed() {
+    static int prevStable = 1;
+    bool pressed = (lastStableState == 0 && prevStable == 1);
+    prevStable = lastStableState;
+    return pressed;
+  }
 };
 
 Button redButton(19);
@@ -214,69 +200,72 @@ void setup() {
 
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
 
-  audio.setVolume(16); // 0...21
+  audio.setVolume(16);  // 0...21
 
   lcd.init();
   lcd.backlight();
-  lcd.setCursor(0,0);
+  lcd.setCursor(0, 0);
   lcd.print("Simon says");
 
-  lcd.setCursor(0,1);
+  lcd.setCursor(0, 1);
   lcd.print("Score:");
   lcd.print(score);
 }
 
 void loop() {
-	redButton.update();
-	greenButton.update();
-	blueButton.update();
-	yellowButton.update();
+  redButton.update();
+  greenButton.update();
+  blueButton.update();
+  yellowButton.update();
 
   redLed.update();
   greenLed.update();
   blueLed.update();
   yellowLed.update();
 
-	switch (state) {
+  switch (state) {
+    case SHOWING_SEQUENCE: {
+      bool oldSequence = correctSequenceLength == score;
+      static bool ledActive = false;
+      static bool inGap = false;
+      static unsigned long gapStart = 0;
 
-		case SHOWING_SEQUENCE: {
-			bool oldSequence = correctSequenceLength == score;
-			static bool ledActive = false;
-			static bool inGap = false;
-			static unsigned long gapStart = 0;
+      if (oldSequence) {
+        updateCorrectSequence();
+      }
 
-			if (oldSequence) {
-				updateCorrectSequence();
-			}
+      if (inGap) {
+        if (millis() - gapStart >= GAP_DURATION) {
+          inGap = false;
+        }
+      } else if (!ledActive) {
+        correctSequence[ledsFlashed]->activateLed(FLASH_DURATION);
+        ledActive = true;
+      } else if (!correctSequence[ledsFlashed]->isLit()) {
+        ledsFlashed++;
+        ledActive = false;
 
-			if (inGap) {
-				if (millis() - gapStart >= GAP_DURATION) {
-					inGap = false;
-				}
-			} else if (!ledActive) {
-				correctSequence[ledsFlashed]->activateLed(FLASH_DURATION);
-				ledActive = true;
-			} else if (!correctSequence[ledsFlashed]->isLit()) {
-				ledsFlashed++;
-				ledActive = false;
-
-				if (ledsFlashed == correctSequenceLength) {
-					ledsFlashed = 0;
-					state = WAITING_FOR_PRESS;
-				} else {
-					inGap = true;
-					gapStart = millis();
-				}
-			}
-			break;
-		}
+        if (ledsFlashed == correctSequenceLength) {
+          ledsFlashed = 0;
+          state = WAITING_FOR_PRESS;
+        } else {
+          inGap = true;
+          gapStart = millis();
+        }
+      }
+      break;
+    }
 
     case WAITING_FOR_PRESS: {
-			pressedLed = nullptr;
-      if (redButton.isPressed())         pressedLed = &redLed;
-      else if (greenButton.isPressed())  pressedLed = &greenLed;
-      else if (blueButton.isPressed())   pressedLed = &blueLed;
-      else if (yellowButton.isPressed()) pressedLed = &yellowLed;
+      pressedLed = nullptr;
+      if (redButton.isPressed())
+        pressedLed = &redLed;
+      else if (greenButton.isPressed())
+        pressedLed = &greenLed;
+      else if (blueButton.isPressed())
+        pressedLed = &blueLed;
+      else if (yellowButton.isPressed())
+        pressedLed = &yellowLed;
 
       if (pressedLed) {
         updateUserSequence(pressedLed);
@@ -288,61 +277,62 @@ void loop() {
 
     case DECIDE_ROUND: {
       if (pressedLed->isLit()) {
-				break;
+        break;
       }
 
-			if (!sequencesMatch()) {
+      if (!sequencesMatch()) {
         state = GAME_OVER;
-			} else if (userSequenceLength == correctSequenceLength) {
-				state = ADVANCE;
-			} else {
-				state = WAITING_FOR_PRESS;
-			}
+      } else if (userSequenceLength == correctSequenceLength) {
+        state = ADVANCE;
+      } else {
+        state = WAITING_FOR_PRESS;
+      }
       break;
     }
 
-		case ADVANCE: {
+    case ADVANCE: {
       score++;
-      lcd.setCursor(0,1);
+      lcd.setCursor(0, 1);
       lcd.print("Score:");
       lcd.print(score);
 
-			playResultAudio(true);
+      playResultAudio(true);
 
-			userSequenceLength = 0;
+      userSequenceLength = 0;
 
-			if (!audio.isRunning()) {
+      if (!audio.isRunning()) {
         state = SHOWING_SEQUENCE;
       }
-			break;
-		}
+      break;
+    }
 
-		case GAME_OVER: {
-      lcd.setCursor(0,0);
+    case GAME_OVER: {
+      lcd.setCursor(0, 0);
       lcd.print("GAME OVER ");
 
-			playResultAudio(false);
+      playResultAudio(false);
 
-    	while (true) {}
+      while (true) {
+      }
     }
   }
 }
 
 void updateCorrectSequence() {
-	int randomIndex = random(ledAmount);
-	correctSequence[correctSequenceLength] = leds[randomIndex];
-	correctSequenceLength++;
+  uint8_t randomIndex = random(ledAmount);
+  correctSequence[correctSequenceLength] = leds[randomIndex];
+  correctSequenceLength++;
 }
 
 void updateUserSequence(Led* led) {
-	userSequence[userSequenceLength] = led;
-	userSequenceLength++;
+  userSequence[userSequenceLength] = led;
+  userSequenceLength++;
 }
 
 bool sequencesMatch() {
   if (userSequenceLength == 0) {
-		return true;
-	};
+    return true;
+  }
   for (int i = 0; i < userSequenceLength; i++) {
     if (userSequence[i] != correctSequence[i]) return false;
   }
@@ -351,67 +341,68 @@ bool sequencesMatch() {
 
 void playResultAudio(bool success) {
   if (success) {
-    int randomIndex = random(successAmount);
+    uint8_t randomIndex = random(successAmount);
     audio.connecttoFS(SD_MMC, successAudio[randomIndex]);
-		while (audio.isRunning()) {
-			audio.loop();
-		}
+    while (audio.isRunning()) {
+      audio.loop();
+    }
   } else {
-		int randomIndex[2] = {random(failAmount), random(failVoicesAmount)};
-		audio.connecttoFS(SD_MMC, failAudio[randomIndex[0]]);
-		while (audio.isRunning()) {
-			audio.loop();
-		}
-		delay(500);
-		audio.connecttoFS(SD_MMC, failVoices[randomIndex[1]]);
-		while (audio.isRunning()) {
-			audio.loop();
-		}
+    uint8_t randomIndex[2] = {(uint8_t)random(failAmount),
+                              (uint8_t)random(failVoicesAmount)};
+    audio.connecttoFS(SD_MMC, failAudio[randomIndex[0]]);
+    while (audio.isRunning()) {
+      audio.loop();
+    }
+    delay(500);
+    audio.connecttoFS(SD_MMC, failVoices[randomIndex[1]]);
+    while (audio.isRunning()) {
+      audio.loop();
+    }
   }
 }
 
 bool i2CAddrTest(uint8_t addr) {
-Wire.begin();
-Wire.beginTransmission(addr);
-if (Wire.endTransmission() == 0) {
-return true;
-}
-return false;
+  Wire.begin();
+  Wire.beginTransmission(addr);
+  if (Wire.endTransmission() == 0) {
+    return true;
+  }
+  return false;
 }
 
-void audio_info(const char *info) {
+void audio_info(const char* info) {
   Serial.print("info ");
   Serial.println(info);
 }
-void audio_id3data(const char *info) { //id3 metadata
+void audio_id3data(const char* info) {  // id3 metadata
   Serial.print("id3data ");
   Serial.println(info);
 }
-void audio_eof_mp3(const char *info) { //end of file
+void audio_eof_mp3(const char* info) {  // end of file
   Serial.print("eof_mp3 ");
   Serial.println(info);
 }
-void audio_showstation(const char *info) {
+void audio_showstation(const char* info) {
   Serial.print("station ");
   Serial.println(info);
 }
-void audio_showstreamtitle(const char *info) {
+void audio_showstreamtitle(const char* info) {
   Serial.print("streamtitle ");
   Serial.println(info);
 }
-void audio_bitrate(const char *info) {
+void audio_bitrate(const char* info) {
   Serial.print("bitrate ");
   Serial.println(info);
 }
-void audio_commercial(const char *info) { //duration in sec
+void audio_commercial(const char* info) {  // duration in sec
   Serial.print("commercial ");
   Serial.println(info);
 }
-void audio_icyurl(const char *info) { //homepage
+void audio_icyurl(const char* info) {  // homepage
   Serial.print("icyurl ");
   Serial.println(info);
 }
-void audio_lasthost(const char *info) { //stream URL played
+void audio_lasthost(const char* info) {  // stream URL played
   Serial.print("lasthost ");
   Serial.println(info);
 }
