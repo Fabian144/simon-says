@@ -13,8 +13,8 @@ const int I2S_DOUT = 33;
 const int I2S_LRC = 25;
 const int PIN_BUZZER = 18;
 const int CHN = 0;
-const int SDA = 21;
-const int SCL = 22;
+const uint8_t SDA = 21;
+const uint8_t SCL = 22;
 
 LiquidCrystal_I2C lcd(0x27,16,2);
 
@@ -33,8 +33,6 @@ unsigned long GAP_DURATION = 200;
 
 int score = 0;
 int ledsFlashed = 0;
-
-Led* pressedLed = nullptr;
 
 const char* successAudio[3] = {
 	"/audio/success/success.mp3",
@@ -122,6 +120,8 @@ int correctSequenceLength = 0;
 
 Led* userSequence[maxLength];
 int userSequenceLength = 0;
+
+Led* pressedLed = nullptr;
 
 class Button {
   private:
