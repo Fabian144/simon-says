@@ -336,7 +336,7 @@ void loop() {
 
 		case GAME_OVER: {
       lcd.setCursor(0,0);
-			lcd.print("");
+			lcd.print(" ");
       lcd.print("GAME OVER");
 
 			playResultAudio(false);
