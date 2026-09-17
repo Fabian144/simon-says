@@ -13,8 +13,6 @@ const int I2S_DOUT = 33;
 const int I2S_LRC = 25;
 const int PIN_BUZZER = 18;
 const int CHN = 0;
-const uint8_t SDA = 21;
-const uint8_t SCL = 22;
 
 LiquidCrystal_I2C lcd(0x27,16,2);
 
@@ -195,13 +193,8 @@ void setup() {
 
   Wire.begin(SDA, SCL);
   if (!i2CAddrTest(0x27)) {
-  	lcd = LiquidCrystal_I2C(0x3F, 16, 2);
+    lcd = LiquidCrystal_I2C(0x3F, 16, 2);
   }
-
-  lcd.init();
-  lcd.backlight();
-  lcd.setCursor(0,0);
-  lcd.print("Simon says");
 
   if (!SD_MMC.begin("/sdcard", true, true, SDMMC_FREQ_DEFAULT, 5)) {
     Serial.println("Card Mount Failed");
@@ -230,6 +223,15 @@ void setup() {
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
 
   audio.setVolume(16); // 0...21
+
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0,0);
+  lcd.print("Simon says");
+
+  lcd.setCursor(0,1);
+  lcd.print("Score:");
+  lcd.print(score);
 }
 
 void loop() {
@@ -241,10 +243,6 @@ void loop() {
     if (r.length() > 5) audio.connecttoFS(SD_MMC, r.c_str());
     log_i("free heap=%i", ESP.getFreeHeap());
   }
-
-  lcd.setCursor(0,1);
-  lcd.print("Score:");
-  lcd.print(score);
 
 	redButton.update();
 	greenButton.update();
@@ -322,8 +320,14 @@ void loop() {
 
 		case ADVANCE: {
 			playResultAudio(true);
+
 			score++;
+      lcd.setCursor(0,1);
+      lcd.print("Score:");
+      lcd.print(score);
+
 			userSequenceLength = 0;
+
 			if (!audio.isRunning()) {
         state = SHOWING_SEQUENCE;
       }
@@ -332,6 +336,10 @@ void loop() {
 
 		case GAME_OVER: {
 			playResultAudio(false);
+
+      lcd.setCursor(0,0);
+      lcd.print("GAME OVER");
+      
     	while (true) {}
     }
   }
