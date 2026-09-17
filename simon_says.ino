@@ -417,13 +417,3 @@ void audio_lasthost(const char *info) { //stream URL played
   Serial.print("lasthost ");
   Serial.println(info);
 }
-
-void audio_info(const char *info);
-void audio_id3data(const char *info);
-void audio_eof_mp3(const char *info);
-void audio_showstation(const char *info);
-void audio_showstreamtitle(const char *info);
-void audio_bitrate(const char *info);
-void audio_commercial(const char *info);
-void audio_icyurl(const char *info);
-void audio_lasthost(const char *info);
