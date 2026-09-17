@@ -195,7 +195,7 @@ void setup() {
 
   Wire.begin(SDA, SCL);
   if (!i2CAddrTest(0x27)) {
-  lcd = LiquidCrystal_I2C(0x3F, 16, 2);
+  	lcd = LiquidCrystal_I2C(0x3F, 16, 2);
   }
 
   lcd.init();
