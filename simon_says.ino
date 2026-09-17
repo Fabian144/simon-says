@@ -319,12 +319,12 @@ void loop() {
     }
 
 		case ADVANCE: {
-			playResultAudio(true);
-
-			score++;
+      score++;
       lcd.setCursor(0,1);
       lcd.print("Score:");
       lcd.print(score);
+
+			playResultAudio(true);
 
 			userSequenceLength = 0;
 
@@ -335,11 +335,11 @@ void loop() {
 		}
 
 		case GAME_OVER: {
-			playResultAudio(false);
-
       lcd.setCursor(0,0);
       lcd.print("GAME OVER");
-      
+
+			playResultAudio(false);
+
     	while (true) {}
     }
   }
