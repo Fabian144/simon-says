@@ -72,17 +72,9 @@ class Led {
       pinMode(pin, OUTPUT);
     }
 
-    void turnOn() {
-      digitalWrite(pin, HIGH);
-    }
-
-    void turnOff() {
-      digitalWrite(pin, LOW);
-    }
-
 		bool update() {
 			if (lit && (millis() - onSince) >= onDuration) {
-				turnOff();
+				digitalWrite(pin, LOW);
 				ledcWriteTone(PIN_BUZZER, 0);
 				lit = false;
 				return true;
@@ -93,7 +85,7 @@ class Led {
 		void activateLed(unsigned long duration) {
 			ledcWriteTone(PIN_BUZZER, buzzerFrequency);
 			ledcWrite(PIN_BUZZER, 20);
-			turnOn();
+			digitalWrite(pin, HIGH);
 			lit = true;
 			onSince = millis();
 			onDuration = duration;
@@ -235,15 +227,6 @@ void setup() {
 }
 
 void loop() {
-  audio.loop();
-  if (Serial.available()) { // put streamURL in serial monitor
-    audio.stopSong();
-    String r = Serial.readString();
-    r.trim();
-    if (r.length() > 5) audio.connecttoFS(SD_MMC, r.c_str());
-    log_i("free heap=%i", ESP.getFreeHeap());
-  }
-
 	redButton.update();
 	greenButton.update();
 	blueButton.update();
